@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KTL Lost & Found</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --text-secondary: #6b7280;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --border-color: #e5e7eb;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --found-bg: #d1fae5;
+            --found-text: #065f46;
+            --lost-bg: #fee2e2;
+            --lost-text: #991b1b;
+            --returned-bg: #e0f2fe;
+            --returned-text: #0369a1;
+            --pinned-border: #f59e0b;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #111827;
+            --card-bg: #1f2937;
+            --text-color: #f9fafb;
+            --text-secondary: #9ca3af;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --border-color: #374151;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            --found-bg: #064e3b;
+            --found-text: #d1fae5;
+            --lost-bg: #7f1d1d;
+            --lost-text: #fee2e2;
+            --returned-bg: #075985;
+            --returned-text: #e0f2fe;
+            --pinned-border: #d97706;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        /* Role Selection Screen Overlay */
+        .role-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .role-modal {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: var(--shadow);
+        }
+        .role-modal h2 { margin-bottom: 10px; color: var(--primary); }
+        .role-modal p { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+        .role-buttons { display: flex; gap: 10px; justify-content: center; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            background: var(--card-bg);
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo h1 { font-size: 24px; color: var(--primary); }
+        .logo p { font-size: 14px; color: var(--text-secondary); }
+
+        .header-actions { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-danger { background-color: #ef4444; }
+        .btn-danger:hover { background-color: #dc2626; }
+        .btn-warning { background-color: #f59e0b; color: #fff; }
+        .btn-warning:hover { background-color: #d97706; }
+        .btn-success { background-color: #10b981; color: #fff; }
+        .btn-success:hover { background-color: #059669; }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .role-badge {
+            font-size: 12px;
+            background: var(--border-color);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        /* Уведомление для администратора (показывается только админу) */
+        .admin-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--card-bg);
+            border-left: 5px solid var(--primary);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+            z-index: 2000;
+            display: none;
+            max-width: 320px;
+            animation: slideIn 0.3s ease;
+        }
+        .admin-toast.active { display: block; }
+        .admin-toast h4 { font-size: 14px; color: var(--primary); margin-bottom: 4px; }
+        .admin-toast p { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+        .admin-toast button { background: none; border: none; font-size: 12px; color: #ef4444; cursor: pointer; font-weight: 600; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+        .stat-card span { font-size: 13px; color: var(--text-secondary); }
+        .stat-card h3 { font-size: 22px; color: var(--primary); margin-top: 5px; }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 25px;
+        }
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } }
+
+        .controls {
+            display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;
+        }
+        .search-box, .filter-select {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            outline: none;
+        }
+        .search-box { flex: 1; min-width: 200px; }
+
+        /* Вкладки */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .card.pinned {
+            border: 2px solid var(--pinned-border);
+        }
+
+        .card-img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+        }
+
+        .card-text-placeholder {
+            width: 100%;
+            height: 140px;
+            background: linear-gradient(135deg, var(--primary), #818cf8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            text-align: center;
+        }
+        .card-text-placeholder span {
+            font-size: 12px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        .card-text-placeholder h4 {
+            font-size: 16px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        .card-content {
+            padding: 15px; flex: 1; display: flex; flex-direction: column;
+        }
+        .badge {
+            display: inline-block; padding: 4px 8px; border-radius: 6px;
+            font-size: 12px; font-weight: 600; margin-bottom: 8px; width: fit-content;
+        }
+        .badge.lost { background-color: var(--lost-bg); color: var(--lost-text); }
+        .badge.found { background-color: var(--found-bg); color: var(--found-text); }
+        .badge.returned { background-color: var(--returned-bg); color: var(--returned-text); }
+        .badge.pending { background-color: #fef3c7; color: #d97706; }
+
+        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 5px; }
+        .card-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; flex: 1; }
+        
+        .card-footer {
+            font-size: 11px; color: var(--text-secondary);
+            border-top: 1px solid var(--border-color); padding-top: 10px;
+            display: flex; justify-content: space-between; align-items: center; gap: 5px;
+        }
+        .contact-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .contact-link:hover { text-decoration: underline; }
+
+        .admin-actions {
+            display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap;
+        }
+
+        .admin-btn {
+            background: none; border: 1px solid var(--primary); color: var(--primary);
+            padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500;
+        }
+        .admin-btn:hover { background: var(--primary); color: white; }
+
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        .widget {
+            background: var(--card-bg); padding: 20px; border-radius: 12px;
+            box-shadow: var(--shadow); border: 1px solid var(--border-color);
+        }
+        .widget h3 { font-size: 16px; margin-bottom: 15px; color: var(--primary); }
+        .places-list { list-style: none; font-size: 13px; color: var(--text-secondary); }
+        .places-list li { padding: 6px 0; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; }
+        .places-list li:last-child { border-bottom: none; }
+
+        /* Модальное окно */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); justify-content: center; align-items: center;
+            padding: 20px; z-index: 100;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: var(--card-bg); padding: 30px; border-radius: 12px;
+            width: 100%; max-width: 500px; box-shadow: var(--shadow); position: relative;
+            max-height: 90vh; overflow-y: auto;
+        }
+        .modal-content h2 { margin-bottom: 20px; font-size: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; margin-bottom: 5px; color: var(--text-secondary); }
+        .form-control {
+            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);
+            background: var(--bg-color); color: var(--text-color); font-size: 14px; outline: none;
+        }
+        .close-modal {
+            position: absolute; top: 20px; right: 20px; background: none; border: none;
+            font-size: 20px; cursor: pointer; color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body data-theme="light">
+
+    <!-- Уведомление для администратора -->
+    <div class="admin-toast" id="adminToast">
+        <h4>🚨 Внимание, админ!</h4>
+        <p id="toastText">Поступила новая заявка на объявление.</p>
+        <button onclick="hideToast()">Закрыть уведомление</button>
+    </div>
+
+    <!-- Выбор роли при входе -->
+    <div class="role-overlay" id="roleOverlay">
+        <div class="role-modal">
+            <h2>KTL Lost & Found</h2>
+            <p>Выберите режим входа в систему:</p>
+            <div class="role-buttons">
+                <button class="btn" onclick="selectRole('user')">👤 Ученик (Наблюдатель)</button>
+                <button class="btn btn-warning" onclick="promptAdmin()">🔑 Администратор</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Шапка -->
+        <header>
+            <div class="logo">
+                <h1>KTL Lost & Found</h1>
+                <p>Официальный сервис поиска потерянных вещей в лицее</p>
+            </div>
+            <div class="header-actions">
+                <span class="role-badge" id="currentRoleBadge">Режим: Ученик</span>
+                <button class="theme-toggle" onclick="toggleTheme()">🌓 Тема</button>
+                <button class="btn" id="actionBtn" onclick="handleMainButton()">+ Подать объявление</button>
+            </div>
+        </header>
+
+        <!-- Статистика -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <span>Активных заявок</span>
+                <h3 id="statActive">0</h3>
+            </div>
+            <div class="stat-card">
+                <span>Успешно возвращено</span>
+                <h3 id="statReturned">0</h3>
+            </div>
+            <div class="stat-card">
+                <span>Главная точка сбора</span>
+                <h3 style="font-size: 16px; margin-top: 8px;">Вахта / Кабинет замдиректора</h3>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <div>
+                <!-- Вкладки -->
+                <div class="tabs" id="tabsContainer">
+                    <button class="tab-btn active" id="tabActive" onclick="switchTab('active')">Активные объявления</button>
+                    <button class="tab-btn" id="tabArchive" onclick="switchTab('archive')">Архив (Возвращено)</button>
+                </div>
+
+                <div class="controls">
+                    <input type="text" id="searchInput" class="search-box" placeholder="Поиск по названию или описанию..." oninput="filterCards()">
+                    <select id="statusFilter" class="filter-select" onchange="filterCards()">
+                        <option value="all">Все статусы</option>
+                        <option value="lost">Потеряно</option>
+                        <option value="found">Найдено</option>
+                    </select>
+                    <select id="categoryFilter" class="filter-select" onchange="filterCards()">
+                        <option value="all">Все категории</option>
+                        <option value="Электроника">Электроника</option>
+                        <option value="Одежда">Одежда</option>
+                        <option value="Книги">Книги / Тетради</option>
+                        <option value="Разное">Разное</option>
+                    </select>
+                </div>
+
+                <!-- Сетка карточек -->
+                <div class="cards-grid" id="cardsGrid"></div>
+            </div>
+
+            <!-- Сайдбар -->
+            <div class="sidebar">
+                <div class="widget">
+                    <h3>📍 Где искать забытое?</h3>
+                    <ul class="places-list">
+                        <li><span>Столовая (у поваров)</span> <strong>Часто</strong></li>
+                        <li><span>Спортзал (раздевалка)</span> <strong>Часто</strong></li>
+                        <li><span>Вахта лицея</span> <strong>Всегда</strong></li>
+                        <li><span>Кабинет дежурного учителя</span> <strong>Редко</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно создания / отправки заявки -->
+    <div class="modal" id="postModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()">&times;</button>
+            <h2 id="modalTitle">Новое объявление</h2>
+            <form id="itemForm" onsubmit="submitItemForm(event)">
+                <div class="form-group">
+                    <label>Тип объявления</label>
+                    <select id="itemType" class="form-control">
+                        <option value="lost">Я потерял вещь</option>
+                        <option value="found">Я нашел вещь</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Категория</label>
+                    <select id="itemCategory" class="form-control">
+                        <option value="Электроника">Электроника</option>
+                        <option value="Одежда">Одежда</option>
+                        <option value="Книги">Книги / Тетради</option>
+                        <option value="Разное">Разное</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Название вещи</label>
+                    <input type="text" id="itemName" class="form-control" placeholder="Например: Синий бомбер" required>
+                </div>
+                <div class="form-group">
+                    <label>Место в лицее</label>
+                    <input type="text" id="itemLocation" class="form-control" placeholder="Например: Возле столовой" required>
+                </div>
+                <div class="form-group">
+                    <label>Описание / Особенность</label>
+                    <input type="text" id="itemDesc" class="form-control" placeholder="Например: Размер M, нашивка" required>
+                </div>
+                <div class="form-group">
+                    <label>Загрузить фото (необязательно)</label>
+                    <input type="file" id="itemImageFile" class="form-control" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label>Связь (Telegram @username или Имя и класс)</label>
+                    <input type="text" id="itemContact" class="form-control" placeholder="@username или Данияр 11А" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%;" id="modalSubmitBtn">Опубликовать</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUserRole = 'user'; // 'user' (наблюдатель) или 'admin'
+        const ADMIN_CODE = 'adminagent2852';
+        let currentTab = 'active'; // 'active', 'archive', 'pending'
+
+        // Запрещенные слова и спам для проверки текстов от учеников
+        const spamWords = ['хер', 'хуй', 'сука', 'блять', 'ебать', 'пидор', 'дурак', 'тест', 'авпвп', '123123', 'свинья', 'бред', 'эээ', 'пхпх'];
+
+        // Начальные данные (активные объявления)
+        const defaultItems = [
+            {
+                id: 1,
+                pinned: true,
+                type: 'lost',
+                category: 'Одежда',
+                name: 'Синий бомбер утепленный',
+                location: 'Гардероб',
+                desc: 'На рукаве небольшая потертость',
+                contact: 'Тимур (10 «Б»)',
+                image: '',
+                status: 'active',
+                date: '21.09.2026, 14:15'
+            },
+            {
+                id: 2,
+                pinned: false,
+                type: 'found',
+                category: 'Электроника',
+                name: 'Белые наушники',
+                location: 'Кабинет физики',
+                desc: 'Лежат в белом кейсе',
+                contact: '@ernar_ktl',
+                image: '',
+                status: 'active',
+                date: '22.09.2026, 09:30'
+            }
+        ];
+
+        let items = JSON.parse(localStorage.getItem('ktl_items')) || defaultItems;
+        let pendingItems = JSON.parse(localStorage.getItem('ktl_pending')) || [];
+
+        function saveToStorage() {
+            localStorage.setItem('ktl_items', JSON.stringify(items));
+            localStorage.setItem('ktl_pending', JSON.stringify(pendingItems));
+        }
+
+        function selectRole(role) {
+            currentUserRole = role;
+            document.getElementById('roleOverlay').style.display = 'none';
+            updateInterfaceForRole();
+            filterCards();
+        }
+
+        function promptAdmin() {
+            let code = prompt("Введите пароль администратора:");
+            if (code === ADMIN_CODE) {
+                selectRole('admin');
+                alert("Успешный вход в режим администратора!");
+            } else if (code !== null) {
+                alert("Неверный пароль!");
+            }
+        }
+
+        function updateInterfaceForRole() {
+            const badge = document.getElementById('currentRoleBadge');
+            const actionBtn = document.getElementById('actionBtn');
+            const tabsContainer = document.getElementById('tabsContainer');
+
+            if (currentUserRole === 'admin') {
+                badge.innerText = 'Режим: 🔑 Администратор';
+                actionBtn.innerText = '+ Добавить объявление';
+                
+                // Добавляем вкладку заявок для админа, если её еще нет
+                if (!document.getElementById('tabPending')) {
+                    const pendingTab = document.createElement('button');
+                    pendingTab.className = 'tab-btn';
+                    pendingTab.id = 'tabPending';
+                    pendingTab.innerHTML = `Модерация заявок <span style="background: #ef4444; color:white; padding: 1px 6px; border-radius: 10px; font-size:11px;" id="pendingCountBadge">0</span>`;
+                    pendingTab.onclick = () => switchTab('pending');
+                    tabsContainer.appendChild(pendingTab);
+                }
+            } else {
+                badge.innerText = 'Режим: 👤 Ученик';
+                actionBtn.innerText = '+ Отправить заявку';
+                
+                // Убираем вкладку модерации у ученика
+                const pendingTab = document.getElementById('tabPending');
+                if (pendingTab) pendingTab.remove();
+                if (currentTab === 'pending') switchTab('active');
+            }
+            updatePendingBadgeCount();
+        }
+
+        function updatePendingBadgeCount() {
+            const badgeCount = document.getElementById('pendingCountBadge');
+            if (badgeCount) {
+                badgeCount.innerText = pendingItems.length;
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tabActive').className = tab === 'active' ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tabArchive').className = tab === 'archive' ? 'tab-btn active' : 'tab-btn';
+            let pendingTab = document.getElementById('tabPending');
+            if (pendingTab) {
+                pendingTab.className = tab === 'pending' ? 'tab-btn active' : 'tab-btn';
+            }
+            filterCards();
+        }
+
+        function formatContact(contactStr) {
+            if (contactStr.startsWith('@')) {
+                let username = contactStr.replace('@', '');
+                return `<a href="https://t.me/${username}" target="_blank" class="contact-link">💬 ${contactStr}</a>`;
+            }
+            return `👤 ${contactStr}`;
+        }
+
+        // Фильтрация спама и некорректного контента
+        function validateContent(name, desc, location) {
+            if (currentUserRole === 'admin') return true;
+
+            const fullText = (name + " " + desc + " " + location).toLowerCase();
+
+            if (name.trim().length < 3 || desc.trim().length < 4) {
+                alert("⚠️ Слишком короткое описание! Напишите понятное название и особенности вещи.");
+                return false;
+            }
+
+            for (let word of spamWords) {
+                if (fullText.includes(word)) {
+                    alert("🚫 Обнаружен некорректный или запрещенный текст. Заполняйте заявку честно!");
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function showAdminToast(itemName) {
+            // Уведомление срабатывает строго если пользователь — админ
+            if (currentUserRole !== 'admin') return;
+            const toast = document.getElementById('adminToast');
+            document.getElementById('toastText').innerText = `Ученик отправил заявку на вещь: "${itemName}". Проверьте вкладку модерации!`;
+            toast.classList.add('active');
+        }
+
+        function hideToast() {
+            document.getElementById('adminToast').classList.remove('active');
+        }
+
+        function handleMainButton() {
+            document.getElementById('modalTitle').innerText = currentUserRole === 'admin' ? 'Новое объявление (Админ)' : 'Отправить заявку на объявление';
+            document.getElementById('modalSubmitBtn').innerText = currentUserRole === 'admin' ? 'Опубликовать сразу' : 'Отправить на модерацию';
+            openModal();
+        }
+
+        function openModal() { document.getElementById('postModal').classList.add('active'); }
+        function closeModal() { document.getElementById('postModal').classList.remove('active'); }
+
+        function submitItemForm(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('itemName').value;
+            const desc = document.getElementById('itemDesc').value;
+            const location = document.getElementById('itemLocation').value;
+
+            if (!validateContent(name, desc, location)) {
+                return;
+            }
+
+            const fileInput = document.getElementById('itemImageFile');
+            let reader = new FileReader();
+
+            const processCreation = (imgData) => {
+                const now = new Date();
+                const dateStr = now.toLocaleDateString() + ', ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                const newItem = {
+                    id: Date.now(),
+                    pinned: false,
+                    type: document.getElementById('itemType').value,
+                    category: document.getElementById('itemCategory').value,
+                    name: name,
+                    location: location,
+                    desc: desc,
+                    image: imgData,
+                    contact: document.getElementById('itemContact').value,
+                    status: 'active',
+                    date: dateStr
+                };
+
+                if (currentUserRole === 'admin') {
+                    // Админ публикует напрямую
+                    items.unshift(newItem);
+                    saveToStorage();
+                    switchTab('active');
+                    alert("Объявление успешно опубликовано!");
+                } else {
+                    // Ученик отправляет заявку на модерацию
+                    pendingItems.unshift(newItem);
+                    saveToStorage();
+                    updatePendingBadgeCount();
+                    closeModal();
+                    document.getElementById('itemForm').reset();
+                    alert("Ваша заявка отправлена администратору на проверку. После одобрения она появится на сайте!");
+                    return;
+                }
+
+                closeModal();
+                document.getElementById('itemForm').reset();
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+                reader.onload = function(uploadEvent) {
+                    processCreation(uploadEvent.target.result);
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                processCreation('');
+            }
+        }
+
+        function renderCards(dataToRender) {
+            const grid = document.getElementById('cardsGrid');
+            grid.innerHTML = '';
+
+            const activeCount = items.filter(i => i.status === 'active').length;
+            const returnedCount = items.filter(i => i.status === 'returned').length;
+            document.getElementById('statActive').innerText = activeCount;
+            document.getElementById('statReturned').innerText = returnedCount;
+
+            if (dataToRender.length === 0) {
+                let textMsg = 'Нет активных объявлений';
+                if (currentTab === 'archive') textMsg = 'Архив пуст';
+                if (currentTab === 'pending') textMsg = 'Нет заявок на модерацию';
+                grid.innerHTML = `<p style="color: var(--text-secondary); grid-column: 1/-1; text-align: center; padding: 20px;">${textMsg}</p>`;
+                return;
+            }
+
+            let sortedData = [...dataToRender];
+            if (currentTab === 'active') {
+                sortedData.sort((a, b) => (b.pinned === true) - (a.pinned === true));
+            }
+
+            sortedData.forEach(item => {
+                let badgeHTML = '';
+                if (currentTab === 'pending') {
+                    badgeHTML = `<span class="badge pending">⏳ Ожидает проверки</span>`;
+                } else if (item.status === 'returned') {
+                    badgeHTML = `<span class="badge returned">✅ Возвращено владельцу</span>`;
+                } else {
+                    badgeHTML = item.type === 'lost' 
+                        ? `<span class="badge lost">🔴 Потеряно</span>` 
+                        : `<span class="badge found">🟢 Найдено</span>`;
+                }
+                
+                let mediaHTML = '';
+                if (item.image && item.image.trim() !== '') {
+                    mediaHTML = `<img src="${item.image}" class="card-img" alt="Фото вещи">`;
+                } else {
+                    mediaHTML = `
+                        <div class="card-text-placeholder">
+                            <span>${item.category}</span>
+                            <h4>${item.name}</h4>
+                        </div>
+                    `;
+                }
+
+                const card = document.createElement('div');
+                card.className = `card ${item.pinned && item.status === 'active' ? 'pinned' : ''}`;
+                
+                let adminControlsHTML = '';
+                if (currentUserRole === 'admin') {
+                    if (currentTab === 'pending') {
+                        adminControlsHTML = `
+                            <div class="admin-actions">
+                                <button class="admin-btn btn-success" onclick="approvePending(${item.id})">✅ Одобрить</button>
+                                <button class="admin-btn btn-danger" onclick="rejectPending(${item.id})">❌ Отклонить</button>
+                            </div>
+                        `;
+                    } else {
+                        let returnBtn = item.status === 'active' 
+                            ? `<button class="admin-btn btn-success" onclick="markReturned(${item.id})">✅ Вернули</button>` 
+                            : `<button class="admin-btn" onclick="markActive(${item.id})">↩️ Возобновить</button>`;
+                        
+                        let pinBtn = item.status === 'active' 
+                            ? `<button class="admin-btn" style="border-color: #f59e0b; color: #f59e0b;" onclick="togglePin(${item.id})">${item.pinned ? '📌 Открепить' : '📌 Закрепить'}</button>` 
+                            : '';
+
+                        adminControlsHTML = `
+                            <div class="admin-actions">
+                                ${returnBtn}
+                                ${pinBtn}
+                                <button class="admin-btn btn-danger" onclick="deleteItem(${item.id})">🗑 Удалить</button>
+                            </div>
+                        `;
+                    }
+                }
+
+                card.innerHTML = `
+                    ${mediaHTML}
+                    <div class="card-content">
+                        ${item.pinned && item.status === 'active' ? '<span style="font-size: 11px; color: #f59e0b; font-weight: bold; margin-bottom: 4px;">📌 Закреплено администратором</span>' : ''}
+                        ${badgeHTML}
+                        <h3 class="card-title">${item.name}</h3>
+                        <p class="card-desc">📍 ${item.location}<br>📝 ${item.desc}</p>
+                        <div class="card-footer">
+                            <span>${formatContact(item.contact)}</span>
+                            <span style="font-size: 10px; opacity: 0.7;">${item.date || ''}</span>
+                        </div>
+                        ${adminControlsHTML}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterCards() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+            const category = document.getElementById('categoryFilter').value;
+
+            if (currentTab === 'pending') {
+                renderCards(pendingItems);
+                return;
+            }
+
+            const filtered = items.filter(item => {
+                const matchesTab = currentTab === 'active' ? item.status === 'active' : item.status === 'returned';
+                const matchesSearch = item.name.toLowerCase().includes(search) || item.desc.toLowerCase().includes(search);
+                const matchesStatus = status === 'all' || item.type === status;
+                const matchesCategory = category === 'all' || item.category === category;
+                return matchesTab && matchesSearch && matchesStatus && matchesCategory;
+            });
+
+            renderCards(filtered);
+        }
+
+        // Админские действия с заявками
+        function approvePending(id) {
+            const index = pendingItems.findIndex(i => i.id === id);
+            if (index !== -1) {
+                const approvedItem = pendingItems.splice(index, 1)[0];
+                items.unshift(approvedItem);
+                saveToStorage();
+                updatePendingBadgeCount();
+                filterCards();
+            }
+        }
+
+        function rejectPending(id) {
+            if (confirm("Вы уверены, что хотите отклонить эту заявку?")) {
+                pendingItems = pendingItems.filter(i => i.id !== id);
+                saveToStorage();
+                updatePendingBadgeCount();
+                filterCards();
+            }
+        }
+
+        function deleteItem(id) {
+            if (confirm("Вы уверены, что хотите удалить это объявление?")) {
+                items = items.filter(item => item.id !== id);
+                saveToStorage();
+                filterCards();
+            }
+        }
+
+        function markReturned(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.status = 'returned';
+                item.pinned = false;
+                saveToStorage();
+                filterCards();
+            }
+        }
+
+        function markActive(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.status = 'active';
+                saveToStorage();
+                filterCards();
+            }
+        }
+
+        function togglePin(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.pinned = !item.pinned;
+                saveToStorage();
+                filterCards();
+            }
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            body.setAttribute('data-theme', currentTheme === 'light' ? 'dark' : 'light');
+        }
+
+        // Инициализация при загрузке
+        updateInterfaceForRole();
+        filterCards();
+    </script>
+</body>
+</html>
